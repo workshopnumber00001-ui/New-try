@@ -1,3 +1,5 @@
+# thanos.py
+
 import os
 import re
 import time
@@ -23,10 +25,12 @@ from base64 import b64decode
 import math
 import m3u8
 from urllib.parse import urljoin
-from vars import *  # Add this import
-# Removed: from db import Database  <-- this was causing circular import
+from vars import *  # इसमें CREDIT, OWNER_ID आदि आते हैं
+
+# ==================== HELPER FUNCTIONS ====================
 
 def get_duration(filename):
+    """FFprobe से वीडियो की अवधि (seconds) निकालें"""
     result = subprocess.run(
         ["ffprobe", "-v", "error", "-show_entries",
          "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", filename],
@@ -36,6 +40,10 @@ def get_duration(filename):
     return float(result.stdout)
 
 def split_large_video(file_path, max_size_mb=1900):
+    """
+    2GB से बड़ी वीडियो को भागों में बाँटें
+    रिटर्न: list of part file paths
+    """
     size_bytes = os.path.getsize(file_path)
     max_bytes = max_size_mb * 1024 * 1024
 
@@ -64,34 +72,33 @@ def split_large_video(file_path, max_size_mb=1900):
 
     return output_files
 
-
 def duration(filename):
-    result = subprocess.run(["ffprobe", "-v", "error", "-show_entries",
-                             "format=duration", "-of",
-                             "default=noprint_wrappers=1:nokey=1", filename],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT)
-    return float(result.stdout)
-
+    """अवधि (seconds) निकालें – get_duration का alias"""
+    return get_duration(filename)
 
 def get_mps_and_keys(api_url):
+    """DRM API से mpd_url और keys प्राप्त करें"""
     response = requests.get(api_url)
     response_json = response.json()
     mpd = response_json.get('mpd_url')
     keys = response_json.get('keys')
     return mpd, keys
 
-
 def exec(cmd):
-        process = subprocess.run(cmd, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-        output = process.stdout.decode()
-        print(output)
-        return output
+    """Shell command execute करें और output लौटाएँ"""
+    process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output = process.stdout.decode()
+    print(output)
+    return output
+
 def pull_run(work, cmds):
+    """Parallel में commands चलाएँ"""
     with concurrent.futures.ThreadPoolExecutor(max_workers=work) as executor:
         print("Waiting for tasks to complete")
-        fut = executor.map(exec,cmds)
-async def aio(url,name):
+        fut = executor.map(exec, cmds)
+
+async def aio(url, name):
+    """async PDF download"""
     k = f'{name}.pdf'
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as resp:
@@ -101,18 +108,12 @@ async def aio(url,name):
                 await f.close()
     return k
 
-
-async def download(url,name):
-    ka = f'{name}.pdf'
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as resp:
-            if resp.status == 200:
-                f = await aiofiles.open(ka, mode='wb')
-                await f.write(await resp.read())
-                await f.close()
-    return ka
+async def download(url, name):
+    """async PDF download (alias)"""
+    return await aio(url, name)
 
 async def pdf_download(url, file_name, chunk_size=1024 * 10):
+    """PDF डाउनलोड (sync but async wrapper)"""
     if os.path.exists(file_name):
         os.remove(file_name)
     r = requests.get(url, allow_redirects=True, stream=True)
@@ -121,9 +122,9 @@ async def pdf_download(url, file_name, chunk_size=1024 * 10):
             if chunk:
                 fd.write(chunk)
     return file_name   
-   
 
 def parse_vid_info(info):
+    """yt-dlp -F output से उपलब्ध रिज़ॉल्यूशन पार्स करें"""
     info = info.strip()
     info = info.split("\n")
     new_info = []
@@ -143,8 +144,8 @@ def parse_vid_info(info):
                 pass
     return new_info
 
-
 def vid_info(info):
+    """yt-dlp -F output से dict बनाएँ"""
     info = info.strip()
     info = info.split("\n")
     new_info = dict()
@@ -164,19 +165,22 @@ def vid_info(info):
                 pass
     return new_info
 
-
 async def decrypt_and_merge_video(mpd_url, keys_string, output_path, output_name, quality="720"):
+    """
+    DRM वीडियो (mpd) को decrypt करके merge करें
+    यह mp4decrypt और ffmpeg का उपयोग करता है
+    """
     try:
         output_path = Path(output_path)
         output_path.mkdir(parents=True, exist_ok=True)
 
         cmd1 = f'yt-dlp -f "bv[height<={quality}]+ba/b" -o "{output_path}/file.%(ext)s" --allow-unplayable-format --no-check-certificate --external-downloader aria2c --downloader-args "aria2c: -x 16 -s 16 -k 1M" "{mpd_url}"'
-        print(f"Running command: {cmd1}")
+        print(f"Running: {cmd1}")
         os.system(cmd1)
         
         avDir = list(output_path.iterdir())
-        print(f"Downloaded files: {avDir}")
-        print("Decrypting")
+        print(f"Downloaded: {avDir}")
+        print("Decrypting...")
 
         video_decrypted = False
         audio_decrypted = False
@@ -184,14 +188,14 @@ async def decrypt_and_merge_video(mpd_url, keys_string, output_path, output_name
         for data in avDir:
             if data.suffix == ".mp4" and not video_decrypted:
                 cmd2 = f'mp4decrypt {keys_string} --show-progress "{data}" "{output_path}/video.mp4"'
-                print(f"Running command: {cmd2}")
+                print(f"Running: {cmd2}")
                 os.system(cmd2)
                 if (output_path / "video.mp4").exists():
                     video_decrypted = True
                 data.unlink()
             elif data.suffix == ".m4a" and not audio_decrypted:
                 cmd3 = f'mp4decrypt {keys_string} --show-progress "{data}" "{output_path}/audio.m4a"'
-                print(f"Running command: {cmd3}")
+                print(f"Running: {cmd3}")
                 os.system(cmd3)
                 if (output_path / "audio.m4a").exists():
                     audio_decrypted = True
@@ -201,7 +205,7 @@ async def decrypt_and_merge_video(mpd_url, keys_string, output_path, output_name
             raise FileNotFoundError("Decryption failed: video or audio file not found.")
 
         cmd4 = f'ffmpeg -i "{output_path}/video.mp4" -i "{output_path}/audio.m4a" -c copy "{output_path}/{output_name}.mp4"'
-        print(f"Running command: {cmd4}")
+        print(f"Running: {cmd4}")
         os.system(cmd4)
         if (output_path / "video.mp4").exists():
             (output_path / "video.mp4").unlink()
@@ -215,22 +219,22 @@ async def decrypt_and_merge_video(mpd_url, keys_string, output_path, output_name
 
         cmd5 = f'ffmpeg -i "{filename}" 2>&1 | grep "Duration"'
         duration_info = os.popen(cmd5).read()
-        print(f"Duration info: {duration_info}")
+        print(f"Duration: {duration_info}")
 
         return str(filename)
 
     except Exception as e:
-        print(f"Error during decryption and merging: {str(e)}")
+        print(f"Error in decrypt_and_merge_video: {str(e)}")
         raise
 
 async def run(cmd):
+    """Async shell command execution"""
     proc = await asyncio.create_subprocess_shell(
         cmd,
         stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE)
-
+        stderr=asyncio.subprocess.PIPE
+    )
     stdout, stderr = await proc.communicate()
-
     print(f'[{cmd!r} exited with {proc.returncode}]')
     if proc.returncode == 1:
         return False
@@ -239,9 +243,8 @@ async def run(cmd):
     if stderr:
         return f'[stderr]\n{stderr.decode()}'
 
-    
-
-def old_download(url, file_name, chunk_size = 1024 * 10 * 10):
+def old_download(url, file_name, chunk_size=1024 * 10 * 10):
+    """Synchronous download"""
     if os.path.exists(file_name):
         os.remove(file_name)
     r = requests.get(url, allow_redirects=True, stream=True)
@@ -251,23 +254,23 @@ def old_download(url, file_name, chunk_size = 1024 * 10 * 10):
                 fd.write(chunk)
     return file_name
 
-
 def human_readable_size(size, decimal_places=2):
+    """बाइट्स को मानव-पठनीय आकार में बदलें"""
     for unit in ['B', 'KB', 'MB', 'GB', 'TB', 'PB']:
         if size < 1024.0 or unit == 'PB':
             break
         size /= 1024.0
     return f"{size:.{decimal_places}f} {unit}"
 
-
 def time_name():
+    """वर्तमान समय के आधार पर फ़ाइल नाम बनाएँ"""
     date = datetime.date.today()
     now = datetime.datetime.now()
     current_time = now.strftime("%H%M%S")
     return f"{date} {current_time}.mp4"
 
-
 async def fast_download(url, name):
+    """तेज़ डाउनलोड (m3u8 को सेगमेंट में तोड़कर)"""
     max_retries = 5
     retry_count = 0
     success = False
@@ -278,7 +281,6 @@ async def fast_download(url, name):
                 async with aiohttp.ClientSession() as session:
                     async with session.get(url) as response:
                         m3u8_text = await response.text()
-                        
                     playlist = m3u8.loads(m3u8_text)
                     if playlist.is_endlist:
                         base_url = url.rsplit('/', 1)[0] + '/'
@@ -289,17 +291,14 @@ async def fast_download(url, name):
                                 segment_url = urljoin(base_url, segment.uri)
                                 task = asyncio.create_task(session.get(segment_url))
                                 tasks.append(task)
-                            
                             responses = await asyncio.gather(*tasks)
                             for response in responses:
                                 segment_data = await response.read()
                                 segments.append(segment_data)
-                        
                         output_file = f"{name}.mp4"
                         with open(output_file, 'wb') as f:
                             for segment in segments:
                                 f.write(segment)
-                        
                         success = True
                         return [output_file]
                     else:
@@ -321,21 +320,24 @@ async def fast_download(url, name):
                                     f.write(chunk)
                             success = True
                             return [output_file]
-            
             if not success:
-                print(f"\nAttempt {retry_count + 1} failed, retrying in 3 seconds...")
+                print(f"\nAttempt {retry_count+1} failed, retrying in 3s...")
                 retry_count += 1
                 await asyncio.sleep(3)
-                
         except Exception as e:
-            print(f"\nError during attempt {retry_count + 1}: {str(e)}")
+            print(f"Error attempt {retry_count+1}: {e}")
             retry_count += 1
             await asyncio.sleep(3)
-    
     return None
 
-# ✅ SUPER FAST download_video
+# ==================== MAIN DOWNLOAD FUNCTION ====================
+
 async def download_video(url, cmd, name):
+    """
+    yt-dlp का उपयोग करके वीडियो डाउनलोड करें
+    अगर विफल हो तो रिट्री करेगा
+    रिटर्न: डाउनलोड की गई फ़ाइल का पथ
+    """
     retry_count = 0
     max_retries = 2
     
@@ -394,21 +396,25 @@ async def download_video(url, cmd, name):
     
     return f"{name_clean}.mp4"
 
-
+# ==================== SEND VIDEO WITH THUMBNAIL & WATERMARK ====================
 
 async def send_vid(bot: Client, m: Message, cc, filename, thumb, name, prog, channel_id, watermark="Thanos", topic_thread_id: int = None):
+    """
+    वीडियो को थंबनेल, वॉटरमार्क, कैप्शन के साथ भेजें
+    अगर फ़ाइल 2GB से बड़ी है तो उसे स्प्लिट करके भेजें
+    """
     try:
         temp_thumb = None
-
         thumbnail = thumb
+
+        # थंबनेल बनाएँ (अगर नहीं दिया गया)
         if thumb in ["/d", "no"] or not os.path.exists(thumb):
             temp_thumb = f"downloads/thumb_{os.path.basename(filename)}.jpg"
-            
             subprocess.run(
                 f'ffmpeg -i "{filename}" -ss 00:00:10 -vframes 1 -q:v 2 -y "{temp_thumb}"',
                 shell=True
             )
-
+            # वॉटरमार्क डालें (अगर उपलब्ध हो)
             if os.path.exists(temp_thumb) and (watermark and watermark.strip() != "/d"):
                 text_to_draw = watermark.strip()
                 try:
@@ -444,16 +450,16 @@ async def send_vid(bot: Client, m: Message, cc, filename, thumb, name, prog, cha
                     f'-c:v mjpeg -q:v 2 -y "{temp_thumb}"'
                 )
                 subprocess.run(text_cmd, shell=True)
-            
             thumbnail = temp_thumb if os.path.exists(temp_thumb) else None
 
-        await prog.delete(True)
+        if prog:
+            await prog.delete(True)
 
+        # प्रगति संदेश
+        reply = await bot.send_message(channel_id, f"🖼 **Generating Thumbnail:**\n<blockquote>{name}</blockquote>")
         reply1 = await bot.send_message(channel_id, f" **Uploading Video:**\n<blockquote>{name}</blockquote>")
-        reply = await m.reply_text(f"🖼 **Generating Thumbnail:**\n<blockquote>{name}</blockquote>")
 
         file_size_mb = os.path.getsize(filename) / (1024 * 1024)
-        notify_split = None
         sent_message = None
 
         if file_size_mb < 2000:
@@ -488,15 +494,13 @@ async def send_vid(bot: Client, m: Message, cc, filename, thumb, name, prog, cha
             await reply1.delete(True)
 
         else:
-            notify_split = await m.reply_text(
-                f"⚠️ The video is larger than 2GB ({human_readable_size(os.path.getsize(filename))})\n"
-                f"⏳ Splitting into parts before upload..."
+            # बड़ी फ़ाइल को स्प्लिट करें
+            notify_split = await bot.send_message(channel_id, 
+                f"⚠️ Video >2GB ({human_readable_size(os.path.getsize(filename))})\n⏳ Splitting..."
             )
-
             parts = split_large_video(filename)
 
             try:
-                first_part_message = None
                 for idx, part in enumerate(parts):
                     part_dur = int(duration(part))
                     part_num = idx + 1
@@ -504,7 +508,7 @@ async def send_vid(bot: Client, m: Message, cc, filename, thumb, name, prog, cha
                     part_caption = f"{cc}\n\n📦 Part {part_num} of {total_parts}"
                     part_filename = f"{name}_Part{part_num}.mp4"
 
-                    upload_msg = await m.reply_text(f"📤 Uploading Part {part_num}/{total_parts}...")
+                    upload_msg = await bot.send_message(channel_id, f"📤 Uploading Part {part_num}/{total_parts}...")
 
                     try:
                         msg_obj = await bot.send_video(
@@ -520,8 +524,8 @@ async def send_vid(bot: Client, m: Message, cc, filename, thumb, name, prog, cha
                             progress=progress_bar,
                             progress_args=(upload_msg, time.time())
                         )
-                        if first_part_message is None:
-                            first_part_message = msg_obj
+                        if sent_message is None:
+                            sent_message = msg_obj
                     except Exception:
                         msg_obj = await bot.send_document(
                             chat_id=channel_id,
@@ -531,18 +535,15 @@ async def send_vid(bot: Client, m: Message, cc, filename, thumb, name, prog, cha
                             progress=progress_bar,
                             progress_args=(upload_msg, time.time())
                         )
-                        if first_part_message is None:
-                            first_part_message = msg_obj
+                        if sent_message is None:
+                            sent_message = msg_obj
 
                     await upload_msg.delete(True)
                     if os.path.exists(part):
                         os.remove(part)
 
             except Exception as e:
-                raise Exception(f"Upload failed at part {idx + 1}: {str(e)}")
-
-            if len(parts) > 1:
-                await m.reply_text("✅ Large video successfully uploaded in multiple parts!")
+                raise Exception(f"Upload failed at part {idx+1}: {str(e)}")
 
             await reply.delete(True)
             await reply1.delete(True)
@@ -551,8 +552,9 @@ async def send_vid(bot: Client, m: Message, cc, filename, thumb, name, prog, cha
             if os.path.exists(filename):
                 os.remove(filename)
 
-            sent_message = first_part_message
+            await bot.send_message(channel_id, "✅ Large video uploaded in multiple parts!")
 
+        # थंबनेल टेम्प फाइल हटाएँ
         if thumb in ["/d", "no"] and temp_thumb and os.path.exists(temp_thumb):
             os.remove(temp_thumb)
 
@@ -560,3 +562,5 @@ async def send_vid(bot: Client, m: Message, cc, filename, thumb, name, prog, cha
 
     except Exception as err:
         raise Exception(f"send_vid failed: {err}")
+
+# ==================== END ====================
