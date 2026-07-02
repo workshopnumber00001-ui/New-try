@@ -1,4 +1,4 @@
-# main.py
+# main.py - Thanos Auto Uploader Bot (Complete)
 import os
 import sys
 import asyncio
@@ -87,7 +87,6 @@ def settings_menu_markup(user_id: int) -> InlineKeyboardMarkup:
     status = lambda key: "✅" if settings.get(key) else "❌"
     buttons.append([InlineKeyboardButton(f"Auto Upload {status('auto_upload')}", callback_data="set_auto_upload_toggle")])
     buttons.append([InlineKeyboardButton(f"Batch Upload {status('batch_upload')}", callback_data="set_batch_upload_toggle")])
-    buttons.append([InlineKeyboardButton(f"Resume {status('resume')}", callback_data="set_resume_toggle")])
     buttons.append([InlineKeyboardButton(f"Quality: {settings['quality']}p", callback_data="set_quality")])
     buttons.append([InlineKeyboardButton(f"Caption Style: {settings['caption_style']}", callback_data="set_caption_style")])
     buttons.append([InlineKeyboardButton(f"Watermark: {'On' if settings['watermark']!='/d' else 'Off'}", callback_data="set_watermark")])
@@ -557,7 +556,8 @@ async def scheduler_loop():
 async def start_cmd(client: Client, message: Message):
     await message.reply(
         "**⚡ THANOS AUTO UPLOADER ⚡**\n\n"
-        "🚀 **Commands:**\n"
+        "🚀 **Bot is Live!**\n\n"
+        "📌 **Commands:**\n"
         "• /fetch <batch_id> - Fetch & upload batch\n"
         "• /fetchcw <batch_id> - CW batch\n"
         "• /fetchcareerwill <batch_id> - Careerwill batch\n"
@@ -571,7 +571,6 @@ async def start_cmd(client: Client, message: Message):
         "• /remove <user_id> - Remove user\n"
         "• /users - List all users\n"
         "• /clean - Clean files\n\n"
-        f"📌 **Version:** 3.0.0\n"
         f"✨ **Powered By:** ⚡ THANOS ⚡"
     )
 
