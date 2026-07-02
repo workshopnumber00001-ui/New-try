@@ -1,64 +1,50 @@
 import os
-from os import environ
 
-# API Configuration
+# ---------- BOT CREDENTIALS ----------
 API_ID = int(os.environ.get("API_ID", "34422904"))
 API_HASH = os.environ.get("API_HASH", "7e0002469784f47fc08a6b3d93d7ebed")
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "8797790668:AAGQ7evDuTp7yK8teJhMWEkaFkyEEkIe5rA")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "YOUR_BOT_TOKEN")
 
-CREDIT = os.environ.get("CREDIT", "✩°𓏲 кяιѕнηα ⋆🌿")
-# MongoDB Configuration
-DATABASE_NAME = os.environ.get("DATABASE_NAME", "DevThanos")
-DATABASE_URL = os.environ.get("DATABASE_URL", "mongodb+srv://adarshppandey937:uIoPcln9vXQBF0vP@cluster0.o9mn6hb.mongodb.net/?")  # Add your own atlas db
-MONGO_URL = DATABASE_URL  # For auth system
-
-# Owner and Admin Configuration
+# ---------- OWNER / ADMIN ----------
 OWNER_ID = int(os.environ.get("OWNER_ID", "5349573682"))
-ADMINS = [int(x) for x in os.environ.get("ADMINS", "5349573682").split()]  # Default to owner ID
+ADMINS = [int(x) for x in os.environ.get("ADMINS", "5349573682").split()]
 
-# Channel Configuration
-PREMIUM_CHANNEL = "https://t.me/backupballu"
-# Thumbnail Configuration
-THUMBNAILS = list(map(str, os.environ.get("THUMBNAILS", "https://files.catbox.moe/fh731v.jpg").split())) # Image Link For Default Thumbnail 
+# ---------- DATABASE ----------
+MONGO_URL = os.environ.get("MONGO_URL", "mongodb+srv://your_mongo_url")
+DATABASE_NAME = os.environ.get("DATABASE_NAME", "ugdev_db")
 
-# Web Server Configuration
-WEB_SERVER = os.environ.get("WEB_SERVER", "False").lower() == "true"
-WEBHOOK = True  # Don't change this
-PORT = int(os.environ.get("PORT", 8000))
+# ---------- DEFAULT CREDIT ----------
+CREDIT = os.environ.get("CREDIT", "✩°𓏲 кяιѕнηα ⋆🌿")
 
-# Message Formats
-AUTH_MESSAGES = {
-    "subscription_active": """<b>🎉 Subscription Activated!</b>
-
-<blockquote>Your subscription has been activated and will expire on {expiry_date}.
-You can now use the bot!</blockquote>\n\n Type /start to start uploading """,
-
-    "subscription_expired": """<b>⚠️ Your Subscription Has Ended</b>
-
-<blockquote>Your access to the bot has been revoked as your subscription period has expired.
-Please contact the admin to renew your subscription.</blockquote>""",
-
-    "user_added": """<b>✅ User Added Successfully!</b>
-
-<blockquote>👤 Name: {name}
-🆔 User ID: {user_id}
-📅 Expiry: {expiry_date}</blockquote>""",
-
-    "user_removed": """<b>✅ User Removed Successfully!</b>
-
-<blockquote>User ID {user_id} has been removed from authorized users.</blockquote>""",
-
-    "access_denied": """<b>⚠️ Access Denied!</b>
-
-<blockquote>You are not authorized to use this bot.
-Please contact the admin @ItsUGBot to get access.</blockquote>""",
-
-    "not_admin": "⚠️ You are not authorized to use this command!",
-    
-    "invalid_format": """❌ <b>Invalid Format!</b>
-
-<blockquote>Use format: {format}</blockquote>"""
+# ---------- API EXTRACTORS (from ram.py) ----------
+API_BASE = os.environ.get("API_BASE", "https://backend.multistreaming.site/api")
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "Content-Type": "application/json",
+    "Accept": "application/json"
 }
 
+# CW (ClassPlus) APIs
+CW_ALL_BATCHES = os.environ.get("CW_ALL_BATCHES", "https://cw-ut-apis-e37c22944d2f.herokuapp.com/api/batches")
+CW_BATCH_API = os.environ.get("CW_BATCH_API", "https://cw-api-website.vercel.app/batch/{}")
+CW_TOPIC_API = os.environ.get("CW_TOPIC_API", "https://cw-api-website.vercel.app/batch?batchid={}&topicid={}")
+CW_VIDEO_API = os.environ.get("CW_VIDEO_API", "https://cw-vid-virid.vercel.app/get_video_details?name={}")
 
+# Careerwill
+CAREERWILL_BUILD_ID = os.environ.get("CAREERWILL_BUILD_ID", "")
+CAREERWILL_COOKIE = os.environ.get("CAREERWILL_COOKIE", "")
+CAREERWILL_HEADERS = {
+    "User-Agent": "Mozilla/5.0",
+    "Referer": "https://web.careerwill.com/live-classes",
+    "Accept": "application/json",
+}
+if CAREERWILL_COOKIE:
+    CAREERWILL_HEADERS["Cookie"] = CAREERWILL_COOKIE
 
+# ---------- AUTH MESSAGES ----------
+AUTH_MESSAGES = {
+    "subscription_active": """<b>🎉 Subscription Activated!</b>\n\nYour subscription will expire on {expiry_date}.""",
+    "user_added": """✅ User Added!\nName: {name}\nID: {user_id}\nExpiry: {expiry_date}""",
+    "not_admin": "⚠️ Not authorized.",
+    "access_denied": "❌ Access Denied. Contact admin.",
+}
