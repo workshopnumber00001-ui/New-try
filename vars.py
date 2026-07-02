@@ -3,7 +3,7 @@ import os
 # ---------- BOT CREDENTIALS ----------
 API_ID = int(os.environ.get("API_ID", "34422904"))
 API_HASH = os.environ.get("API_HASH", "7e0002469784f47fc08a6b3d93d7ebed")
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "YOUR_BOT_TOKEN")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "8989917967:AAH71jzNoYa19-JwNjjUMUTq8FhGQkrZT0M")
 
 # ---------- OWNER / ADMIN ----------
 OWNER_ID = int(os.environ.get("OWNER_ID", "5349573682"))
