@@ -37,3 +37,12 @@ itsdangerous
 pytz
 colorama
 reportlab
+pyrogram==2.0.106
+pyrofork==2.2.11
+tgcrypto==1.2.5
+pyromod==1.5.0
+pysocks==1.7.1
+Flask==2.3.2
+gunicorn==21.2.0
+pymongo
+requests
