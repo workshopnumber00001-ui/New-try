@@ -10,7 +10,7 @@ OWNER_ID = int(os.environ.get("OWNER_ID", "5349573682"))
 ADMINS = [int(x) for x in os.environ.get("ADMINS", "5349573682").split()]
 
 # ---------- DATABASE ----------
-MONGO_URL = os.environ.get("MONGO_URL", "mongodb+srv://your_mongo_url")
+MONGO_URL = os.environ.get("MONGO_URL", "mongodb+srv://adarshppandey937:uIoPcln9vXQBF0vP@cluster0.o9mn6hb.mongodb.net/?")
 DATABASE_NAME = os.environ.get("DATABASE_NAME", "ugdev_db")
 
 # ---------- DEFAULT CREDIT ----------
